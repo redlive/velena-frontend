@@ -91,7 +91,7 @@
       if (d.get('_honey')) { form.reset(); say(TXT.sent, true); return; }   // bot trap
       var t = target(); if (!t || !window.fetch) { mailto(d); say(TXT.mailOpen, true); return; }
       var data = {}; d.forEach(function (v, k) { if (k !== '_honey') data[k] = v; });
-      data._subject = subject;
+      data._subject = d.get('_subject') || subject;
       if (t.kind === 'formsubmit') { data._template = 'table'; data._captcha = 'false'; data._honey = ''; }
       if (data.email && t.kind === 'formsubmit') data._replyto = data.email;
       if (btn) { btn.disabled = true; btn.textContent = TXT.sending; }

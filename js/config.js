@@ -66,7 +66,7 @@ window.SITE_CONFIG = {
     provider: "formsubmit",
     recipient: "velenahouse@gmail.com",
     endpoint: "",
-    subject: "New message from velena.ca",
+    subject: "New message from Velena website",
     newsletterSubject: "New newsletter sign-up from velena.ca"
   }
 };
