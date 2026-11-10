@@ -1,0 +1,22 @@
+name: Unpack site
+on:
+  push:
+    branches: [main]
+    paths: ['site.tgz.b64']
+permissions:
+  contents: write
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack site archive
+        run: |
+          base64 -d site.tgz.b64 > /tmp/site.tgz
+          git rm -q site.tgz.b64
+          tar -xzf /tmp/site.tgz
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Unpack Velena website files"
+          git push
