@@ -8,14 +8,16 @@
   var TXT = RU ? {
     mailOpen: 'Сейчас откроется ваша почта с готовым письмом — останется только отправить.',
     sending: 'Отправляем…', sent: 'Спасибо! Сообщение отправлено — мы скоро ответим.',
-    failed: 'Не удалось отправить. Открываем вашу почту с готовым письмом — или позвоните нам: (604) 765-7671.',
+    failed: 'Не удалось отправить сообщение. Попробуйте ещё раз или позвоните нам: (604) 765-7671.',
+    activate: 'Форма ещё не активирована: владельцу сайта отправлено письмо для активации. Пожалуйста, позвоните нам: (604) 765-7671.',
     invalid: 'Пожалуйста, заполните обязательные поля и проверьте email.',
     enquiry: 'Вопрос с сайта', signup: 'Подписка на новости', signupBody: 'Пожалуйста, добавьте меня в рассылку Velena: ',
     name: 'Имя', email: 'Email', phone: 'Телефон', follow: 'Подписаться @', igAlt: 'Публикация Velena Hairstyling House в Instagram'
   } : {
     mailOpen: 'Your email app should open with the message ready to send.',
     sending: 'Sending…', sent: 'Thank you! Your message has been sent. We will be in touch soon.',
-    failed: 'Sorry, the message could not be sent. Opening your email app instead, or call us at (604) 765-7671.',
+    failed: 'Sorry, the message could not be sent. Please try again or call us at (604) 765-7671.',
+    activate: 'This form is awaiting activation by the site owner. Please call us at (604) 765-7671 in the meantime.',
     invalid: 'Please fill in the required fields and check your email address.',
     enquiry: 'Website enquiry', signup: 'Email sign-up', signupBody: 'Please add me to the Velena email list: ',
     name: 'Name', email: 'Email', phone: 'Phone', follow: 'Follow @', igAlt: 'Instagram post by Velena Hairstyling House'
@@ -69,7 +71,7 @@
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && hdr) { hdr.classList.remove('open'); burger && burger.setAttribute('aria-expanded', 'false'); } });
 
-  // forms: send in-page (FormSubmit AJAX or Formspree); mailto only if sending fails
+  // forms: send in-page (FormSubmit AJAX or Formspree); never falls back to the visitor's mail app
   var F = C.contactForm || {};
   function target() {
     var ep = F.endpoint || '';
@@ -99,9 +101,9 @@
         .then(function (res) {
           var ok = res.ok && !(res.j && (res.j.success === false || res.j.success === 'false'));
           if (ok) { form.reset(); say(TXT.sent, true); }
-          else { say(TXT.failed, false); mailto(d); }
+          else { var m = (res.j && res.j.message) || ''; say(/activat/i.test(m) ? (TXT.activate || m) : TXT.failed, false); }
         })
-        .catch(function () { say(TXT.failed, false); mailto(d); })
+        .catch(function () { say(TXT.failed, false); })
         .then(function () { if (btn) { btn.disabled = false; btn.textContent = label; } });
     });
   }
