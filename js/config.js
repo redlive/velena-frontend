@@ -14,11 +14,13 @@ window.SITE_CONFIG = {
   phoneDisplay: "(604) 765-7671",
   phoneTel: "+16047657671",
   addressLines: ["749 Marchmont Rd", "Duncan, BC V9L 2L9"],
-  hoursText: "Monday – Saturday, 9:00 – 5:00 · Sunday closed",
+  hoursText: "Monday to Sunday — by appointment only",
 
-  // Google Maps (no API key needed)
-  mapEmbedUrl: "https://maps.google.com/maps?q=749+Marchmont+Rd,+Duncan,+BC+V9L+2L9&z=14&output=embed",
-  directionsUrl: "https://www.google.com/maps/dir/?api=1&destination=749+Marchmont+Rd+Duncan+BC+V9L+2L9",
+  // Google Maps (no API key needed). Coordinates of 749 Marchmont Rd, Duncan
+  // (a text address with the postal code sent Google to the wrong place).
+  mapEmbedUrl: "https://maps.google.com/maps?q=48.7770859,-123.6929722&z=16&output=embed",
+  directionsUrl: "https://www.google.com/maps/dir/?api=1&destination=48.7770859,-123.6929722",
+  mapViewUrl: "https://www.google.com/maps/search/?api=1&query=48.7770859,-123.6929722",
 
   // Other social links. "" = hidden.
   social: { facebook: "" },
@@ -49,9 +51,22 @@ window.SITE_CONFIG = {
     ]
   },
 
-  // Form back-ends. "" = open the visitor's email app (mailto:) addressed to
-  // `email`. Any service accepting a normal HTML form POST works
-  // (Formspree, Basin, Getform…), e.g. "https://formspree.io/f/XXXXXXX".
-  contactFormEndpoint: "",
-  newsletterEndpoint: ""
+  /* ------------------------------------------------------------------------
+     FORMS (Contact page form + footer newsletter) — sent in-page, no server.
+     provider: "formsubmit" -> free FormSubmit.co, no account. Messages go to
+                               `recipient`. The FIRST real message triggers an
+                               activation email from FormSubmit to that address:
+                               open it and click "Activate Form" once.
+               "formspree"  -> free Formspree.io form: set endpoint to
+                               "https://formspree.io/f/XXXXXXX".
+     endpoint: optional full URL; a formspree.io URL switches to Formspree.
+     If sending fails, the visitor's email app opens with the message ready.
+     ------------------------------------------------------------------------ */
+  contactForm: {
+    provider: "formsubmit",
+    recipient: "velenahouse@gmail.com",
+    endpoint: "",
+    subject: "New message from velena.ca",
+    newsletterSubject: "New newsletter sign-up from velena.ca"
+  }
 };

@@ -4,6 +4,39 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   document.documentElement.classList.add('js');
+  var RU = (document.documentElement.lang || '').indexOf('ru') === 0;
+  var TXT = RU ? {
+    mailOpen: 'Сейчас откроется ваша почта с готовым письмом — останется только отправить.',
+    sending: 'Отправляем…', sent: 'Спасибо! Сообщение отправлено — мы скоро ответим.',
+    failed: 'Не удалось отправить. Открываем вашу почту с готовым письмом — или позвоните нам: (604) 765-7671.',
+    invalid: 'Пожалуйста, заполните обязательные поля и проверьте email.',
+    enquiry: 'Вопрос с сайта', signup: 'Подписка на новости', signupBody: 'Пожалуйста, добавьте меня в рассылку Velena: ',
+    name: 'Имя', email: 'Email', phone: 'Телефон', follow: 'Подписаться @', igAlt: 'Публикация Velena Hairstyling House в Instagram'
+  } : {
+    mailOpen: 'Your email app should open with the message ready to send.',
+    sending: 'Sending…', sent: 'Thank you! Your message has been sent. We will be in touch soon.',
+    failed: 'Sorry, the message could not be sent. Opening your email app instead, or call us at (604) 765-7671.',
+    invalid: 'Please fill in the required fields and check your email address.',
+    enquiry: 'Website enquiry', signup: 'Email sign-up', signupBody: 'Please add me to the Velena email list: ',
+    name: 'Name', email: 'Email', phone: 'Phone', follow: 'Follow @', igAlt: 'Instagram post by Velena Hairstyling House'
+  };
+
+  // language: remember an explicit EN/RU choice; on later visits open the remembered
+  // language's counterpart page. Never for bots, never without a stored choice.
+  var LKEY = 'velena-lang', store = null;
+  try { store = window.localStorage; } catch (e) {}
+  $$('.lang a[data-lang]').forEach(function (a) {
+    a.addEventListener('click', function () { try { store && store.setItem(LKEY, a.getAttribute('data-lang')); } catch (e) {} });
+  });
+  (function () {
+    if (!store || /bot|crawl|spider|slurp|lighthouse|headless/i.test(navigator.userAgent)) return;
+    if (/404\.html$/.test(location.pathname) || !document.querySelector('link[hreflang]')) return;
+    var want = null; try { want = store.getItem(LKEY); } catch (e) {}
+    var cur = RU ? 'ru' : 'en';
+    if (!want || want === cur) return;
+    var a = $('.lang a[data-lang="' + want + '"]');
+    if (a) location.replace(a.href + location.hash);
+  })();
 
   // config-driven text / links
   $$('[data-cfg="email"]').forEach(function (el) { if (!C.email) return; el.textContent = C.email; el.href = 'mailto:' + C.email; });
@@ -36,27 +69,53 @@
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && hdr) { hdr.classList.remove('open'); burger && burger.setAttribute('aria-expanded', 'false'); } });
 
-  // forms: POST to configured endpoint, else compose an email
-  function wire(form, endpoint, subject, body, status) {
+  // forms: send in-page (FormSubmit AJAX or Formspree); mailto only if sending fails
+  var F = C.contactForm || {};
+  function target() {
+    var ep = F.endpoint || '';
+    if (/formspree\.io\//.test(ep) || F.provider === 'formspree') return ep ? { url: ep, kind: 'formspree' } : null;
+    if (ep) return { url: ep, kind: 'formsubmit' };
+    var to = F.recipient || C.email; return to ? { url: 'https://formsubmit.co/ajax/' + encodeURIComponent(to), kind: 'formsubmit' } : null;
+  }
+  function wire(form, subject, mailSubject, body, status) {
     if (!form) return;
-    if (endpoint) { form.action = endpoint; form.method = 'post'; return; }
+    var btn = form.querySelector('button[type=submit]'), label = btn ? btn.textContent : '';
+    function say(msg, ok) { if (status) { status.textContent = msg; status.className = 'fine form-msg ' + (ok ? 'ok' : 'err'); } }
+    function mailto(d) { location.href = 'mailto:' + C.email + '?subject=' + encodeURIComponent(mailSubject) + '&body=' + encodeURIComponent(body(d)); }
     form.addEventListener('submit', function (e) {
-      e.preventDefault(); if (!form.reportValidity()) return;
-      location.href = 'mailto:' + C.email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body(new FormData(form)));
-      if (status) status.textContent = 'Your email app should open with the message ready to send.';
+      e.preventDefault();
+      if (!form.checkValidity()) { form.reportValidity(); say(TXT.invalid, false); return; }
+      var d = new FormData(form);
+      if (d.get('_honey')) { form.reset(); say(TXT.sent, true); return; }   // bot trap
+      var t = target(); if (!t || !window.fetch) { mailto(d); say(TXT.mailOpen, true); return; }
+      var data = {}; d.forEach(function (v, k) { if (k !== '_honey') data[k] = v; });
+      data._subject = subject;
+      if (t.kind === 'formsubmit') { data._template = 'table'; data._captcha = 'false'; data._honey = ''; }
+      if (data.email && t.kind === 'formsubmit') data._replyto = data.email;
+      if (btn) { btn.disabled = true; btn.textContent = TXT.sending; }
+      say('', true);
+      fetch(t.url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(data) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          var ok = res.ok && !(res.j && (res.j.success === false || res.j.success === 'false'));
+          if (ok) { form.reset(); say(TXT.sent, true); }
+          else { say(TXT.failed, false); mailto(d); }
+        })
+        .catch(function () { say(TXT.failed, false); mailto(d); })
+        .then(function () { if (btn) { btn.disabled = false; btn.textContent = label; } });
     });
   }
-  wire($('#contact-form'), C.contactFormEndpoint, 'Website enquiry', function (d) {
-    return 'Name: ' + d.get('name') + '\nEmail: ' + d.get('email') + '\nPhone: ' + (d.get('phone') || '') + '\n\n' + d.get('message');
+  wire($('#contact-form'), F.subject || 'New message from velena.ca', TXT.enquiry, function (d) {
+    return TXT.name + ': ' + d.get('name') + '\n' + TXT.email + ': ' + d.get('email') + '\n' + TXT.phone + ': ' + (d.get('phone') || '') + '\n\n' + d.get('message');
   }, $('#contact-status'));
-  wire($('#signup-form'), C.newsletterEndpoint, 'Email sign-up', function (d) {
-    return 'Please add me to the Velena email list: ' + d.get('email');
+  wire($('#signup-form'), F.newsletterSubject || 'New newsletter sign-up from velena.ca', TXT.signup, function (d) {
+    return TXT.signupBody + d.get('email');
   }, $('#signup-status'));
 
   // Instagram (footer link + gallery.html)
   var IG = C.instagram || {}, igUrl = IG.handle ? 'https://www.instagram.com/' + IG.handle.replace(/^@/, '') + '/' : '';
   $$('[data-ig-link]').forEach(function (el) {
-    if (igUrl) { el.href = igUrl; el.hidden = false; el.removeAttribute('aria-disabled'); if (el.hasAttribute('data-ig-text')) el.textContent = 'Follow @' + IG.handle.replace(/^@/, ''); }
+    if (igUrl) { el.href = igUrl; el.hidden = false; el.removeAttribute('aria-disabled'); if (el.hasAttribute('data-ig-text')) el.textContent = TXT.follow + IG.handle.replace(/^@/, ''); }
   });
   $$('[data-ig-soon]').forEach(function (el) { el.hidden = !!igUrl; });
   var feed = $('#ig-feed'), fallback = $('#ig-fallback');
@@ -70,7 +129,7 @@
           var src = (p.sizes && p.sizes.medium && p.sizes.medium.mediaUrl) || p.thumbnailUrl || p.mediaUrl; if (!src) return;
           var a = document.createElement('a'); a.href = p.permalink; a.target = '_blank'; a.rel = 'noopener'; a.className = 'gi';
           var im = document.createElement('img'); im.src = src; im.loading = 'lazy';
-          im.alt = (p.prunedCaption || p.caption || 'Instagram post by Velena Hairstyling House').slice(0, 140);
+          im.alt = (p.prunedCaption || p.caption || TXT.igAlt).slice(0, 140);
           a.appendChild(im); grid.appendChild(a);
         });
         feed.appendChild(grid); showFeed();
